@@ -23,23 +23,6 @@ struct InputOpt {
     stdin: bool,
 }
 
-struct StringReader {
-    pub source: String,
-    pub offset: usize,
-}
-
-impl io::Read for StringReader {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let src = &self.source.as_bytes()[self.offset..];
-        let count = std::cmp::min(src.len(), buf.len());
-        for (d, s) in buf.iter_mut().zip(src.iter()) {
-            *d = *s;
-        }
-        self.offset += count;
-        Ok(count)
-    }
-}
-
 impl InputOpt {
     pub fn get_reader(&self) -> Result<Box<dyn io::BufRead>> {
         if self.stdin || self.inline.as_ref().map(|x| &x[..] == "-").unwrap_or(false) {
@@ -49,7 +32,7 @@ impl InputOpt {
             Ok(Box::new(io::BufReader::new(f)))
         } else {
             let text = self.text.as_ref().or(self.inline.as_ref()).unwrap().clone();
-            Ok(Box::new(io::BufReader::new(StringReader{ source: text, offset: 0 })))
+            Ok(Box::new(io::Cursor::new(text)))
         }
     }
 }
