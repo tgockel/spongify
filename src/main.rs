@@ -38,9 +38,59 @@ impl InputOpt {
 }
 
 #[derive(StructOpt, Debug)]
+#[structopt(rename_all = "kebab-case")]
 struct OutputOpt {
-    #[structopt(group = "output")]
+    /// Output to a file.
+    #[structopt(short, long, group = "output")]
     output_file: Option<PathBuf>,
+
+    /// Copy result to the clipboard.
+    #[structopt(short, long, group = "output")]
+    clip: bool,
+}
+
+impl OutputOpt {
+    pub fn get_writer(&self) -> Result<Box<dyn io::Write>> {
+        if let Some(ref path) = self.output_file {
+            let f = fs::File::create(path)?;
+            Ok(Box::new(f))
+        } else if self.clip {
+            Ok(Box::new(ClipWriter::new()))
+        } else {
+            Ok(Box::new(io::stdout()))
+        }
+    }
+}
+
+struct ClipWriter {
+    contents: Vec<u8>,
+}
+
+impl ClipWriter {
+    pub fn new() -> Self {
+        Self { contents: Vec::with_capacity(1024) }
+    }
+}
+
+impl io::Write for ClipWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.contents.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Drop for ClipWriter {
+    fn drop(&mut self) {
+        use copypasta_ext::prelude::*;
+        use copypasta_ext::x11_fork::ClipboardContext;
+
+        let goal = String::from_utf8_lossy(&self.contents[..]).to_string();
+        let mut ctx = ClipboardContext::new().unwrap();
+        ctx.set_contents(goal).unwrap();
+    }
 }
 
 #[derive(StructOpt, Debug)]
@@ -59,15 +109,16 @@ fn main() -> Result<()> {
     let opt = Opt::from_args();
 
     let input = opt.input.get_reader()?;
+    let mut output = opt.output.get_writer()?;
 
     for line in input.lines() {
         let line = line?;
 
         for (idx, c) in line.chars().enumerate() {
             if idx % 2 == 0 {
-                print!("{}", c.to_uppercase());
+                write!(output, "{}", c.to_uppercase())?;
             } else {
-                print!("{}", c.to_lowercase());
+                write!(output, "{}", c.to_lowercase())?;
             }
         }
         println!();

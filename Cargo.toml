@@ -5,4 +5,5 @@ authors = ["Travis Gockel <travis@gockelhut.com>"]
 edition = "2018"
 
 [dependencies]
+copypasta-ext = "0.3"
 structopt = "0.3"
