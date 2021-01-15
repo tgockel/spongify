@@ -31,7 +31,7 @@ impl InputOpt {
             let f = fs::File::open(path)?;
             Ok(Box::new(io::BufReader::new(f)))
         } else {
-            let text = self.text.as_ref().or(self.inline.as_ref()).unwrap().clone();
+            let text = self.text.as_ref().or_else(|| self.inline.as_ref()).unwrap().clone();
             Ok(Box::new(io::Cursor::new(text)))
         }
     }
@@ -50,14 +50,16 @@ struct OutputOpt {
 }
 
 impl OutputOpt {
-    pub fn get_writer(&self) -> Result<Box<dyn io::Write>> {
+    /// # Return
+    /// A tuple containing an output to write to and a boolean indicating if a newline should be appended to the output.
+    pub fn get_writer(&self) -> Result<(Box<dyn io::Write>, bool)> {
         if let Some(ref path) = self.output_file {
             let f = fs::File::create(path)?;
-            Ok(Box::new(f))
+            Ok((Box::new(f), true))
         } else if self.clip {
-            Ok(Box::new(ClipWriter::new()))
+            Ok((Box::new(ClipWriter::new()), false))
         } else {
-            Ok(Box::new(io::stdout()))
+            Ok((Box::new(io::stdout()), true))
         }
     }
 }
@@ -109,10 +111,19 @@ fn main() -> Result<()> {
     let opt = Opt::from_args();
 
     let input = opt.input.get_reader()?;
-    let mut output = opt.output.get_writer()?;
+    let (mut output, newline) = opt.output.get_writer()?;
 
+    let mut first = true;
     for line in input.lines() {
         let line = line?;
+
+        if !newline {
+            if first {
+                first = false;
+            } else {
+                write!(output, " ")?;
+            }
+        }
 
         for (idx, c) in line.chars().enumerate() {
             if idx % 2 == 0 {
@@ -121,7 +132,10 @@ fn main() -> Result<()> {
                 write!(output, "{}", c.to_lowercase())?;
             }
         }
-        println!();
+
+        if newline {
+            writeln!(output)?;
+        }
     }
 
     Ok(())
