@@ -1,8 +1,16 @@
+mod capital;
+
+use capital::{
+    CapitalizationStrategy,
+};
+
 use structopt::{clap::ArgGroup, StructOpt};
 use std::{
+    fmt,
     fs,
     io,
     path::PathBuf,
+    string::ToString,
 };
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -103,6 +111,17 @@ struct Opt {
 
     #[structopt(flatten)]
     output: OutputOpt,
+
+    /// The capitalization style to use. Can be "LiKe tHiS", "LiKe ThIs", "lIkE ThIs", "lIkE tHiS", or "RaNDOmlY"
+    /// (capitalization matters for everything but "raNdOMLy"). Is this an annoying way to specify an argument? Yes.
+    #[structopt(long, default_value)]
+    style: CapitalizationStrategy,
+}
+
+impl fmt::Display for Opt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "I dunno")
+    }
 }
 
 fn main() -> Result<()> {
@@ -112,6 +131,7 @@ fn main() -> Result<()> {
 
     let input = opt.input.get_reader()?;
     let (mut output, newline) = opt.output.get_writer()?;
+    let mut capitalizer = opt.style.create_engine();
 
     let mut first = true;
     for line in input.lines() {
@@ -126,7 +146,7 @@ fn main() -> Result<()> {
         }
 
         for (idx, c) in line.chars().enumerate() {
-            if idx % 2 == 0 {
+            if capitalizer.should_capitalize(idx, c) {
                 write!(output, "{}", c.to_uppercase())?;
             } else {
                 write!(output, "{}", c.to_lowercase())?;
