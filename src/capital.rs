@@ -39,7 +39,7 @@ impl CapitalizationEngine for RandomCapitalizationEngine {
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum CapitalizationStrategy {
     AlternatingInitialUppercase,
     AlternatingInitialLowercase,

@@ -5,6 +5,6 @@ authors = ["Travis Gockel <travis@gockelhut.com>"]
 edition = "2021"
 
 [dependencies]
+clap = { version = "^4.4.7", features = ["derive"] }
 copypasta-ext = "^0.4.4"
 rand = "^0.8.5"
-structopt = "^0.3.21"

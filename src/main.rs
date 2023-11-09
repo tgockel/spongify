@@ -1,10 +1,7 @@
 mod capital;
 
-use capital::{
-    CapitalizationStrategy,
-};
-
-use structopt::{clap::ArgGroup, StructOpt};
+use capital::CapitalizationStrategy;
+use clap::{Args, Parser};
 use std::{
     fmt,
     fs,
@@ -13,47 +10,50 @@ use std::{
     string::ToString,
 };
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+type Result<T, E = Box<dyn std::error::Error + Send + Sync>> = std::result::Result<T, E>;
 
-#[derive(StructOpt, Debug)]
+#[derive(Args, Debug)]
+#[group(required = true)]
 struct InputOpt {
     /// Inline text to SpOnGiFy. If specified as `-`, SpOnGiFy will read from standard input.
-    #[structopt(group = "input")]
     inline: Option<String>,
+
     /// The text to SpOnGiFy. This can be useful if your text is `-`.
-    #[structopt(long, group = "input")]
+    #[arg(long, group = "input")]
     text: Option<String>,
+
     /// Load text from a file.
-    #[structopt(long, short, group = "input")]
+    #[arg(long, short, group = "input")]
     file: Option<PathBuf>,
+
     /// Read from standard input.
-    #[structopt(long, group = "input")]
+    #[arg(long, group = "input")]
     stdin: bool,
 }
 
 impl InputOpt {
-    pub fn get_reader(&self) -> Result<Box<dyn io::BufRead>> {
+    pub fn into_reader(self) -> Result<Box<dyn io::BufRead + Send + Sync>> {
         if self.stdin || self.inline.as_ref().map(|x| &x[..] == "-").unwrap_or(false) {
             Ok(Box::new(io::BufReader::new(io::stdin())))
         } else if let Some(ref path) = self.file {
             let f = fs::File::open(path)?;
             Ok(Box::new(io::BufReader::new(f)))
         } else {
-            let text = self.text.as_ref().or_else(|| self.inline.as_ref()).unwrap().clone();
+            let text = self.text.or(self.inline)
+                .unwrap_or_else(|| "no text input".to_string());
             Ok(Box::new(io::Cursor::new(text)))
         }
     }
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(rename_all = "kebab-case")]
+#[derive(Args, Debug)]
 struct OutputOpt {
     /// Output to a file.
-    #[structopt(short, long, group = "output")]
+    #[arg(short, long, group = "output")]
     output_file: Option<PathBuf>,
 
     /// Copy result to the clipboard.
-    #[structopt(short, long, group = "output")]
+    #[arg(short, long, group = "output")]
     clip: bool,
 }
 
@@ -103,33 +103,32 @@ impl Drop for ClipWriter {
     }
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(group = ArgGroup::with_name("input").required(true))]
+#[derive(Parser, Debug)]
 struct Opt {
-    #[structopt(flatten)]
+    #[command(flatten)]
     input: InputOpt,
 
-    #[structopt(flatten)]
+    #[command(flatten)]
     output: OutputOpt,
 
     /// The capitalization style to use. Can be "LiKe tHiS", "LiKe ThIs", "lIkE ThIs", "lIkE tHiS", or "RaNDOmlY"
     /// (capitalization matters for everything but "raNdOMLy"). Is this an annoying way to specify an argument? Yes.
-    #[structopt(long, default_value)]
+    #[arg(long, default_value_t = CapitalizationStrategy::AlternatingInitialUppercase)]
     style: CapitalizationStrategy,
 }
 
 impl fmt::Display for Opt {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "I dunno")
+        write!(f, "{self:?}")
     }
 }
 
 fn main() -> Result<()> {
     use io::BufRead;
 
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
 
-    let input = opt.input.get_reader()?;
+    let input = opt.input.into_reader()?;
     let (mut output, newline) = opt.output.get_writer()?;
     let mut capitalizer = opt.style.create_engine();
 
