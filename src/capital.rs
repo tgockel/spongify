@@ -1,8 +1,5 @@
-use std::{
-    fmt,
-    str,
-};
 use rand::Rng;
+use std::{fmt, str};
 
 pub trait CapitalizationEngine {
     fn should_capitalize(&mut self, index: usize, character: char) -> bool;
@@ -29,7 +26,9 @@ struct RandomCapitalizationEngine {
 
 impl RandomCapitalizationEngine {
     pub fn new() -> RandomCapitalizationEngine {
-        RandomCapitalizationEngine { rng: rand::thread_rng() }
+        RandomCapitalizationEngine {
+            rng: rand::thread_rng(),
+        }
     }
 }
 
@@ -52,34 +51,26 @@ impl CapitalizationStrategy {
     /// Create a `CapitalizationEngine` based on this strategy description.
     pub fn create_engine(&self) -> Box<dyn CapitalizationEngine> {
         match self {
-            Self::AlternatingInitialUppercase =>
-                Box::new(
-                    AlternatingCapitalizationEngine{
-                        next_is_capital: true,
-                        skip_whitespace: false
-                    }
-                ),
-            Self::AlternatingInitialLowercase =>
-                Box::new(
-                    AlternatingCapitalizationEngine{
-                        next_is_capital: false,
-                        skip_whitespace: false,
-                    }
-                ),
-            Self::AlternatingInitialUppercaseSkipWhitespace =>
-                Box::new(
-                    AlternatingCapitalizationEngine{
-                        next_is_capital: true,
-                        skip_whitespace: true,
-                    }
-                ),
-            Self::AlternatingInitialLowercaseSkipWhitespace =>
-                Box::new(
-                    AlternatingCapitalizationEngine{
-                        next_is_capital: false,
-                        skip_whitespace: true,
-                    }
-                ),
+            Self::AlternatingInitialUppercase => Box::new(AlternatingCapitalizationEngine {
+                next_is_capital: true,
+                skip_whitespace: false,
+            }),
+            Self::AlternatingInitialLowercase => Box::new(AlternatingCapitalizationEngine {
+                next_is_capital: false,
+                skip_whitespace: false,
+            }),
+            Self::AlternatingInitialUppercaseSkipWhitespace => {
+                Box::new(AlternatingCapitalizationEngine {
+                    next_is_capital: true,
+                    skip_whitespace: true,
+                })
+            }
+            Self::AlternatingInitialLowercaseSkipWhitespace => {
+                Box::new(AlternatingCapitalizationEngine {
+                    next_is_capital: false,
+                    skip_whitespace: true,
+                })
+            }
             Self::Randomly => Box::new(RandomCapitalizationEngine::new()),
         }
     }
@@ -117,7 +108,7 @@ impl str::FromStr for CapitalizationStrategy {
             "lIkE tHiS" => Ok(Self::AlternatingInitialLowercaseSkipWhitespace),
             "LiKe ThIs" => Ok(Self::AlternatingInitialUppercaseSkipWhitespace),
             x if x.to_lowercase().matches("randomly").count() == 1 => Ok(Self::Randomly),
-            _ => Err(format!("Unknown capitalization \"{}\"", input))
+            _ => Err(format!("Unknown capitalization \"{}\"", input)),
         }
     }
 }
@@ -132,8 +123,14 @@ mod tests {
 
         assert_eq!(AlternatingInitialLowercase, "lIkE ThIs".parse().unwrap());
         assert_eq!(AlternatingInitialUppercase, "LiKe tHiS".parse().unwrap());
-        assert_eq!(AlternatingInitialLowercaseSkipWhitespace, "lIkE tHiS".parse().unwrap());
-        assert_eq!(AlternatingInitialUppercaseSkipWhitespace, "LiKe ThIs".parse().unwrap());
+        assert_eq!(
+            AlternatingInitialLowercaseSkipWhitespace,
+            "lIkE tHiS".parse().unwrap()
+        );
+        assert_eq!(
+            AlternatingInitialUppercaseSkipWhitespace,
+            "LiKe ThIs".parse().unwrap()
+        );
         assert_eq!(Randomly, "randomly".parse().unwrap());
     }
 

@@ -2,13 +2,7 @@ mod capital;
 
 use capital::CapitalizationStrategy;
 use clap::{Args, Parser};
-use std::{
-    fmt,
-    fs,
-    io,
-    path::PathBuf,
-    string::ToString,
-};
+use std::{fmt, fs, io, path::PathBuf, string::ToString};
 
 type Result<T, E = Box<dyn std::error::Error + Send + Sync>> = std::result::Result<T, E>;
 
@@ -39,7 +33,9 @@ impl InputOpt {
             let f = fs::File::open(path)?;
             Ok(Box::new(io::BufReader::new(f)))
         } else {
-            let text = self.text.or(self.inline)
+            let text = self
+                .text
+                .or(self.inline)
                 .unwrap_or_else(|| "no text input".to_string());
             Ok(Box::new(io::Cursor::new(text)))
         }
@@ -78,7 +74,9 @@ struct ClipWriter {
 
 impl ClipWriter {
     pub fn new() -> Self {
-        Self { contents: Vec::with_capacity(1024) }
+        Self {
+            contents: Vec::with_capacity(1024),
+        }
     }
 }
 
