@@ -7,7 +7,6 @@ use std::{fmt, fs, io, path::PathBuf, string::ToString};
 type Result<T, E = Box<dyn std::error::Error + Send + Sync>> = std::result::Result<T, E>;
 
 #[derive(Args, Debug)]
-#[group(required = true)]
 struct InputOpt {
     /// Inline text to SpOnGiFy. If specified as `-`, SpOnGiFy will read from standard input.
     inline: Option<String>,
@@ -27,7 +26,7 @@ struct InputOpt {
 
 impl InputOpt {
     pub fn into_reader(self) -> Result<Box<dyn io::BufRead + Send + Sync>> {
-        if self.stdin || self.inline.as_ref().map(|x| &x[..] == "-").unwrap_or(false) {
+        if self.stdin() {
             Ok(Box::new(io::BufReader::new(io::stdin())))
         } else if let Some(ref path) = self.file {
             let f = fs::File::open(path)?;
@@ -39,6 +38,12 @@ impl InputOpt {
                 .unwrap_or_else(|| "no text input".to_string());
             Ok(Box::new(io::Cursor::new(text)))
         }
+    }
+
+    pub fn stdin(&self) -> bool {
+        self.stdin
+            || self.inline.as_ref().map(|x| &x[..] == "-").unwrap_or(false)
+            || (self.text.is_none() && self.file.is_none() && self.inline.is_none())
     }
 }
 
