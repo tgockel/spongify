@@ -2,16 +2,21 @@ mod capital;
 
 use capital::CapitalizationStrategy;
 use clap::{Args, Parser};
-use std::{fmt, fs, io, path::PathBuf, string::ToString};
+use std::{
+    fmt, fs, io,
+    path::{Path, PathBuf},
+    string::ToString,
+};
 
 type Result<T, E = Box<dyn std::error::Error + Send + Sync>> = std::result::Result<T, E>;
 
 #[derive(Args, Debug)]
 struct InputOpt {
-    /// Inline text to SpOnGiFy. If specified as `-`, SpOnGiFy will read from standard input.
+    /// The meaning of the inline parameter is guessed at by SpOnGiFy. If this names a file, that file is read. If
+    /// specified as `-`, SpOnGiFy will read from standard input. Use `--text` or `--file` to disambiguate.
     inline: Option<String>,
 
-    /// The text to SpOnGiFy. This can be useful if your text is `-`.
+    /// The text to SpOnGiFy. This can be useful if your text is `-` or names a file.
     #[arg(long, group = "input")]
     text: Option<String>,
 
@@ -24,26 +29,44 @@ struct InputOpt {
     stdin: bool,
 }
 
-impl InputOpt {
-    pub fn into_reader(self) -> Result<Box<dyn io::BufRead + Send + Sync>> {
-        if self.stdin() {
-            Ok(Box::new(io::BufReader::new(io::stdin())))
-        } else if let Some(ref path) = self.file {
-            let f = fs::File::open(path)?;
-            Ok(Box::new(io::BufReader::new(f)))
+enum InputSpec {
+    Stdin,
+    Text(String),
+    File(PathBuf),
+}
+
+impl From<InputOpt> for InputSpec {
+    fn from(value: InputOpt) -> Self {
+        if value.stdin {
+            Self::Stdin
+        } else if let Some(text) = value.text {
+            Self::Text(text)
+        } else if let Some(file) = value.file {
+            Self::File(file)
+        } else if let Some(inline) = value.inline {
+            if &inline[..] == "-" {
+                Self::Stdin
+            } else {
+                let path = Path::new(&inline);
+                if path.exists() {
+                    Self::File(PathBuf::from(inline))
+                } else {
+                    Self::Text(inline)
+                }
+            }
         } else {
-            let text = self
-                .text
-                .or(self.inline)
-                .unwrap_or_else(|| "no text input".to_string());
-            Ok(Box::new(io::Cursor::new(text)))
+            unreachable!("Unhandled conversion from {value:?}");
         }
     }
+}
 
-    pub fn stdin(&self) -> bool {
-        self.stdin
-            || self.inline.as_ref().map(|x| &x[..] == "-").unwrap_or(false)
-            || (self.text.is_none() && self.file.is_none() && self.inline.is_none())
+impl InputSpec {
+    pub fn into_reader(self) -> Result<Box<dyn io::BufRead + Send + Sync>> {
+        match self {
+            Self::Stdin => Ok(Box::new(io::BufReader::new(io::stdin()))),
+            Self::Text(text) => Ok(Box::new(io::Cursor::new(text))),
+            Self::File(path) => Ok(Box::new(io::BufReader::new(fs::File::open(path)?))),
+        }
     }
 }
 
@@ -131,7 +154,7 @@ fn main() -> Result<()> {
 
     let opt = Opt::parse();
 
-    let input = opt.input.into_reader()?;
+    let input = InputSpec::from(opt.input).into_reader()?;
     let (mut output, newline) = opt.output.get_writer()?;
     let mut capitalizer = opt.style.create_engine();
 
