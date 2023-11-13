@@ -7,4 +7,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "^4.4.7", features = ["derive"] }
 copypasta-ext = "^0.4.4"
+fontdue = { version = "0.7.3" }
 rand = "^0.8.5"
+image = { version = "^0.24.7" }
+bytes = "1.5.0"

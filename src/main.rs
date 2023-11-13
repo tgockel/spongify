@@ -1,4 +1,5 @@
 mod capital;
+mod imagemacro;
 
 use capital::CapitalizationStrategy;
 use clap::{Args, Parser};
@@ -14,7 +15,7 @@ type Result<T, E = Box<dyn std::error::Error + Send + Sync>> = std::result::Resu
 struct InputOpt {
     /// The meaning of the inline parameter is guessed at by SpOnGiFy. If this names a file, that file is read. If
     /// specified as `-`, SpOnGiFy will read from standard input. Use `--text` or `--file` to disambiguate.
-    inline: Option<String>,
+    inline: Vec<String>,
 
     /// The text to SpOnGiFy. This can be useful if your text is `-` or names a file.
     #[arg(long, group = "input")]
@@ -43,7 +44,10 @@ impl From<InputOpt> for InputSpec {
             Self::Text(text)
         } else if let Some(file) = value.file {
             Self::File(file)
-        } else if let Some(inline) = value.inline {
+        } else if value.inline.is_empty() {
+            Self::Stdin
+        } else if value.inline.len() == 1 {
+            let inline = &value.inline[0];
             if &inline[..] == "-" {
                 Self::Stdin
             } else {
@@ -51,11 +55,11 @@ impl From<InputOpt> for InputSpec {
                 if path.exists() {
                     Self::File(PathBuf::from(inline))
                 } else {
-                    Self::Text(inline)
+                    Self::Text(inline.clone())
                 }
             }
         } else {
-            unreachable!("Unhandled conversion from {value:?}");
+            Self::Text(value.inline.join(" "))
         }
     }
 }
